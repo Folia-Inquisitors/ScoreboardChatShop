@@ -1,0 +1,18 @@
+name: "ScoreboardChatShop"
+author: TheTealViper
+version: "${project.version}"
+api-version: 1.18
+description: "Shop through chat simple as that"
+main: me.TheTealViper.scoreboardchatshop.ScoreboardChatShop
+depend: [Vault]
+softdepend: [PlaceholderAPI]
+folia-supported: true
+commands:
+ setprice:
+  description: Set the price
+ buy:
+  description: Buy the item
+ sell:
+  description: Sell the item
+ price:
+  description: Get the price

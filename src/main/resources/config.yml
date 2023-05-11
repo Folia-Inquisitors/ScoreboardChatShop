@@ -1,0 +1,35 @@
+##########################################################
+#               ScoreboardChatShop Config                #
+##########################################################
+
+Aliases:
+ COBBLESTONE:
+  - cobble
+ OAK_PRESSURE_PLATE:
+  - pressure_plate
+  - pressureplate
+ STONE_PRESSURE_PLATE:
+  - stonepressureplate
+# Format is
+# [UPPERCASE_PARENT]:
+#  - indented_child_1
+#  - no_spaces_allowed_in_children_names
+#  - child_3
+#
+# Parent material names can be found: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Material.html
+
+Minimal_Sell_Autocomplete: true
+# Set this to true if you want to hide items from the sell tab
+#  autocomplete which are not currently in the player's inventory.
+# Set this to false if you want players to see all available items
+#  for sale in the tab autocomplete regardless of what is in their
+#  inventories.
+# Keep in mind "/price" autocompletes a full list of possible
+#  buy/sell items.
+
+##########################################################
+#                        Version                         #
+##########################################################
+
+VERSION: 1
+#Do not touch this. No touchy.

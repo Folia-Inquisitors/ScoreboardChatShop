@@ -1,0 +1,50 @@
+Buy_BundleAlert: "You can only buy that item in bundles of %scoreboardchatshop_basebundleamount%."
+Buy_CanOnlySell: "You can only sell that item."
+Buy_MissingMaterial: "That material can't be bought."
+Buy_MissingInventorySpace: "You don't have enough inventory space for that."
+Buy_NotBoughtOrSold: "That material is not bought or sold."
+Buy_NotEnoughMoney: "You don't have enough money to buy that."
+Buy_Success: "Purchased %scoreboardchatshop_amount% &>LCH#00FFAA%scoreboardchatshop_basematerial%&<LCH#FF00EA&r for &??$%scoreboardchatshop_price%."
+
+Help_Buy: "/buy (item/hand) <amount> - Buy items"
+Help_Price: "/price (item/hand) <amount> - Get buy/sell price"
+Help_Sell: "/sell (item/hand) <amount> - Sell items"
+Help_SetPrice: "/setprice (sell/buy) (item/hand) ($) <amount> - Set buy/sell price"
+
+Error_ConsoleAttempt: "That command isn't available for console."
+Error_MissingPerms: "You don't have permission to do that!"
+Error_NumberFormat: "A number you have typed is formatted incorrectly."
+
+Price_ConsoleAttempt: "Console must specify an item name."
+Price_NotBoughtOrSold: "That item is not bought or sold."
+Price_BuyResponse: "Buy: $%scoreboardchatshop_price% for %scoreboardchatshop_amount%. Buy in bundles of %scoreboardchatshop_basebundleamount%."
+Price_SellResponse: "Sell: $%scoreboardchatshop_price% for %scoreboardchatshop_amount%. Sells in bundles of %scoreboardchatshop_basebundleamount%."
+
+Sell_BundleAlert: "You can only sell that item in bundles of %scoreboardchatshop_basebundleamount%."
+Sell_CanOnlyBuy: "You can only buy that item."
+Sell_MissingMaterial: "That material can't be sold."
+Sell_NotBoughtOrSold: "That material is not bought or sold."
+Sell_NotEnoughItems: "You don't have enough items for that."
+Sell_Success: "Sold %scoreboardchatshop_amount% &>LCH#FF00EA%scoreboardchatshop_basematerial%&<LCH#00FFAA&r for &?$%scoreboardchatshop_price%."
+
+SetPrice_Success: "Successfully set the price of %scoreboardchatshop_basematerial% as $%scoreboardchatshop_price% for %scoreboardchatshop_amount%!"
+SetPrice_MaterialDoesntExist: "That material does not exist."
+
+#Syntax:
+# %scoreboardchatshop_price% - Price of specific request (only functions where applicable)
+# %scoreboardchatshop_amount% - Amount of specific arequest (only functions where applicable)
+# %scoreboardchatshop_material% - Material specified (only functions where applicable)
+# %scoreboardchatshop_basebundleprice% - Price of base bundle (only functions where applicable)
+# %scoreboardchatshop_basebundleamount% - Amount of base bundle (only functions where applicable)
+# %scoreboardchatshop_basematerial% - Official material name
+#Coloring:
+# - Standard color codes apply
+# - "&?" substitutes as a random vanilla color
+# - "&??" substitutes as a random hex color
+# - "&>RGB######___&<RGB######" will become an RGB gradient spanning from the left hex code color to the right hex code color
+#     ###### represents hex codes
+#     ___ represents the text (typically a placeholder) which the gradient spans across
+# - "&>LCH######___&<LCH######" will become an LCH gradient spanning from the left hex code color to the right hex code color
+#     LCH traverses nicer across colors than RGB in my opinion. If you don't know the difference, not a big deal just try both.
+#     ###### represents hex codes
+#     ___ represents the text (typically a placeholder) which the gradient spans across
