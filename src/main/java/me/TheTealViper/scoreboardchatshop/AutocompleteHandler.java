@@ -129,6 +129,9 @@ public class AutocompleteHandler implements TabCompleter{
 			boolean bypassInvCheck = !SCS.getConfig().getBoolean("Minimal_Sell_Autocomplete");
 			for (String matName : SCS.materialSellList) {
 				String parentName = SCS.aliasDatabase.get(matName);
+				if (parentName == null) {
+					continue;
+				}
 				Material mat = Material.getMaterial(parentName.toUpperCase());
 				if (mat != null && (p.getInventory().first(Material.valueOf(parentName.toUpperCase())) != -1 || bypassInvCheck))
 					foundMaterials.add(matName);
