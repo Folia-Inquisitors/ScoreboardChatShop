@@ -10,6 +10,7 @@ Help_Buy: "/buy (item/hand) <amount> - Buy items"
 Help_Price: "/price (item/hand) <amount> - Get buy/sell price"
 Help_Sell: "/sell (item/hand) <amount> - Sell items"
 Help_SetPrice: "/setprice (sell/buy) (item/hand) ($) <amount> - Set buy/sell price"
+Help_Shop: "/shop check (username) - View a player's top shop items"
 
 Error_ConsoleAttempt: "That command isn't available for console."
 Error_MissingPerms: "You don't have permission to do that!"
@@ -30,6 +31,15 @@ Sell_Success: "Sold %scoreboardchatshop_amount% &>LCH#FF00EA%scoreboardchatshop_
 SetPrice_Success: "Successfully set the price of %scoreboardchatshop_basematerial% as $%scoreboardchatshop_price% for %scoreboardchatshop_amount%!"
 SetPrice_MaterialDoesntExist: "That material does not exist."
 
+Shop_Check_Header: "&6Shop stats for &e%scoreboardchatshop_player%&6:"
+Shop_Check_BuyHeader: "&aTop bought:"
+Shop_Check_SellHeader: "&aTop sold:"
+Shop_Check_BuyLine: "&7#%scoreboardchatshop_rank% &f%scoreboardchatshop_material% &7x%scoreboardchatshop_amount% &8- &cspent $%scoreboardchatshop_money%"
+Shop_Check_SellLine: "&7#%scoreboardchatshop_rank% &f%scoreboardchatshop_material% &7x%scoreboardchatshop_amount% &8- &aearned $%scoreboardchatshop_money%"
+Shop_Check_NoBoughtStats: "&7No bought item stats yet."
+Shop_Check_NoSoldStats: "&7No sold item stats yet."
+Shop_Check_NoStats: "&7No shop stats found for %scoreboardchatshop_player%."
+
 #Syntax:
 # %scoreboardchatshop_price% - Price of specific request (only functions where applicable)
 # %scoreboardchatshop_amount% - Amount of specific arequest (only functions where applicable)
@@ -37,6 +47,26 @@ SetPrice_MaterialDoesntExist: "That material does not exist."
 # %scoreboardchatshop_basebundleprice% - Price of base bundle (only functions where applicable)
 # %scoreboardchatshop_basebundleamount% - Amount of base bundle (only functions where applicable)
 # %scoreboardchatshop_basematerial% - Official material name
+# %scoreboardchatshop_player% - Player shown in /shop check
+# %scoreboardchatshop_rank% - Rank shown in /shop check lines
+# %scoreboardchatshop_money% - Money shown in /shop check lines
+#PlaceholderAPI:
+# %scoreboardchatshop_buy_price_DIAMOND% - Buy price for the configured bundle
+# %scoreboardchatshop_buy_amount_DIAMOND% - Buy bundle amount
+# %scoreboardchatshop_buy_unit_price_DIAMOND% - Buy price per item
+# %scoreboardchatshop_sell_price_DIAMOND% - Sell price for the configured bundle
+# %scoreboardchatshop_sell_amount_DIAMOND% - Sell bundle amount
+# %scoreboardchatshop_sell_unit_price_DIAMOND% - Sell price per item
+# %scoreboardchatshop_stats_buy_top_1_item% - Player's top bought item
+# %scoreboardchatshop_stats_buy_top_1_amount% - Amount bought for that rank
+# %scoreboardchatshop_stats_buy_top_1_money% - Money spent for that rank
+# %scoreboardchatshop_stats_sell_top_1_item% - Player's top sold item
+# %scoreboardchatshop_stats_sell_top_1_amount% - Amount sold for that rank
+# %scoreboardchatshop_stats_sell_top_1_money% - Money earned for that rank
+# %scoreboardchatshop_stats_buy_total_amount% - Total items bought
+# %scoreboardchatshop_stats_buy_total_money% - Total money spent
+# %scoreboardchatshop_stats_sell_total_amount% - Total items sold
+# %scoreboardchatshop_stats_sell_total_money% - Total money earned
 #Coloring:
 # - Standard color codes apply
 # - "&?" substitutes as a random vanilla color

@@ -1,9 +1,12 @@
 package me.TheTealViper.scoreboardchatshop;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -36,7 +39,10 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 	Map<String, Integer> sellPriceDatabase = new HashMap<String, Integer>();
 	Map<String, Integer> sellAmountDatabase = new HashMap<String, Integer>();
 	PluginFile priceFile;
+	PluginFile statsFile;
 	PluginFile messagesFile;
+	ScoreboardChatShopPlaceholderExpansion placeholderExpansion;
+	private final Object statsLock = new Object();
 	private static Economy econ = null;
 	private boolean foundPlaceholderAPI = false;
 	
@@ -55,17 +61,25 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 		
 		//Init yml files
 		priceFile = new PluginFile(this, "prices.db");
+		statsFile = new PluginFile(this, "stats.db");
 		messagesFile = new PluginFile(this, "messages.yml", "messages.yml");
+		loadMessageDefaults();
 		
 		//Load stuff in
 		loadPriceDatabase();
 		loadAliasAndMaterialDatabases();
+
+		if (foundPlaceholderAPI) {
+			placeholderExpansion = new ScoreboardChatShopPlaceholderExpansion(this);
+			placeholderExpansion.register();
+		}
 		
 		AH = new AutocompleteHandler(this);
 		getCommand("price").setTabCompleter(AH);
 		getCommand("setprice").setTabCompleter(AH);
 		getCommand("buy").setTabCompleter(AH);
 		getCommand("sell").setTabCompleter(AH);
+		getCommand("shop").setTabCompleter(AH);
 	}
 	
 	private boolean setupEconomy() {
@@ -104,6 +118,24 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 			}
 		}
 	}
+
+	private void loadMessageDefaults() {
+		setMessageDefault("Help_Shop", "/shop check (username) - View a player's top shop items");
+		setMessageDefault("Shop_Check_Header", "&6Shop stats for &e%scoreboardchatshop_player%&6:");
+		setMessageDefault("Shop_Check_BuyHeader", "&aTop bought:");
+		setMessageDefault("Shop_Check_SellHeader", "&aTop sold:");
+		setMessageDefault("Shop_Check_BuyLine", "&7#%scoreboardchatshop_rank% &f%scoreboardchatshop_material% &7x%scoreboardchatshop_amount% &8- &cspent $%scoreboardchatshop_money%");
+		setMessageDefault("Shop_Check_SellLine", "&7#%scoreboardchatshop_rank% &f%scoreboardchatshop_material% &7x%scoreboardchatshop_amount% &8- &aearned $%scoreboardchatshop_money%");
+		setMessageDefault("Shop_Check_NoBoughtStats", "&7No bought item stats yet.");
+		setMessageDefault("Shop_Check_NoSoldStats", "&7No sold item stats yet.");
+		setMessageDefault("Shop_Check_NoStats", "&7No shop stats found for %scoreboardchatshop_player%.");
+	}
+
+	private void setMessageDefault(String path, String value) {
+		if (messagesFile.isSet(path))
+			return;
+		messagesFile.set(path, value);
+	}
 	
 	private void loadAliasAndMaterialDatabases() {
 //		materialList = new ArrayList<String>(); //TODO: Make a set instead of a list
@@ -136,15 +168,19 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 		
 		//Load aliases
 		ConfigurationSection sec = getConfig().getConfigurationSection("Aliases");
-		for (String parentMatName : sec.getKeys(false)) {
-			for (String aliasName : sec.getStringList(parentMatName)) {
-				aliasDatabase.put(aliasName.toLowerCase(), parentMatName.toLowerCase());
+		if (sec != null) {
+			for (String parentMatName : sec.getKeys(false)) {
+				String parentMatNameLower = parentMatName.toLowerCase();
+				for (String aliasName : sec.getStringList(parentMatName)) {
+					String aliasNameLower = aliasName.toLowerCase();
+					aliasDatabase.put(aliasNameLower, parentMatNameLower);
 //				materialList.add(aliasName.toLowerCase());
-				if (materialBuyList.contains(parentMatName))
-					materialBuyList.add(aliasName);
-				if (materialSellList.contains(parentMatName))
-					materialSellList.add(aliasName);
-				materialExpansiveList.add(aliasName.toLowerCase());
+					if (materialBuyList.contains(parentMatNameLower))
+						materialBuyList.add(aliasNameLower);
+					if (materialSellList.contains(parentMatNameLower))
+						materialSellList.add(aliasNameLower);
+					materialExpansiveList.add(aliasNameLower);
+				}
 			}
 		}
 		
@@ -162,6 +198,8 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 	}
 	
 	public void onDisable(){
+		if (placeholderExpansion != null)
+			placeholderExpansion.unregister();
 		getServer().getConsoleSender().sendMessage("SimpleChatShop from TheTealViper shutting down. Bshzzzzzz");
 	}
 	
@@ -174,6 +212,8 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 		
 		//Handle admin functionality
 		Player p = (sender instanceof Player) ? (Player) sender : null;
+		if (label.equalsIgnoreCase("shop"))
+			return handleShopCommand(sender, args);
 		if (args.length == 0) {
 			if (label.equalsIgnoreCase("price")) {
 				if (p != null) {
@@ -300,6 +340,79 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
         
         return true;
 	}
+
+	@SuppressWarnings("deprecation")
+	private boolean handleShopCommand(CommandSender sender, String[] args) {
+		OfflinePlayer messageTarget = Bukkit.getOfflinePlayer(sender.getName());
+		if (args.length == 2 && args[0].equalsIgnoreCase("check")) {
+			OfflinePlayer target = getStatsOfflinePlayer(args[1]);
+			sendShopCheck(sender, target, args[1]);
+			return true;
+		}
+		sender.sendMessage(formatString(messageTarget, messagesFile.getString("Help_Shop"), null, null, null, null, null, null));
+		return true;
+	}
+
+	@SuppressWarnings("deprecation")
+	private OfflinePlayer getStatsOfflinePlayer(String requestedName) {
+		String playerKey = findStatsPlayerKey(requestedName);
+		if (playerKey != null) {
+			try {
+				return Bukkit.getOfflinePlayer(UUID.fromString(playerKey));
+			} catch (IllegalArgumentException e) {
+				// Fall back to name lookup below.
+			}
+		}
+		return Bukkit.getOfflinePlayer(requestedName);
+	}
+
+	private void sendShopCheck(CommandSender sender, OfflinePlayer target, String requestedName) {
+		String displayName = target.getName() == null ? requestedName : target.getName();
+		String playerKey = getStatsPlayerKey(target);
+		if (playerKey == null)
+			playerKey = findStatsPlayerKey(requestedName);
+
+		Map<String, String> replacements = new HashMap<String, String>();
+		replacements.put("%scoreboardchatshop_player%", displayName);
+
+		if (playerKey == null) {
+			sender.sendMessage(formatString(target, messagesFile.getString("Shop_Check_NoStats"), replacements));
+			return;
+		}
+
+		List<ShopStat> buyStats = getTopStatsFromKey(playerKey, "Buy", 5);
+		List<ShopStat> sellStats = getTopStatsFromKey(playerKey, "Sell", 5);
+		if (buyStats.isEmpty() && sellStats.isEmpty()) {
+			sender.sendMessage(formatString(target, messagesFile.getString("Shop_Check_NoStats"), replacements));
+			return;
+		}
+
+		sender.sendMessage(formatString(target, messagesFile.getString("Shop_Check_Header"), replacements));
+		sender.sendMessage(formatString(target, messagesFile.getString("Shop_Check_BuyHeader"), replacements));
+		if (buyStats.isEmpty())
+			sender.sendMessage(formatString(target, messagesFile.getString("Shop_Check_NoBoughtStats"), replacements));
+		else
+			sendShopStatLines(sender, target, displayName, buyStats, "Shop_Check_BuyLine");
+
+		sender.sendMessage(formatString(target, messagesFile.getString("Shop_Check_SellHeader"), replacements));
+		if (sellStats.isEmpty())
+			sender.sendMessage(formatString(target, messagesFile.getString("Shop_Check_NoSoldStats"), replacements));
+		else
+			sendShopStatLines(sender, target, displayName, sellStats, "Shop_Check_SellLine");
+	}
+
+	private void sendShopStatLines(CommandSender sender, OfflinePlayer target, String displayName, List<ShopStat> stats, String messageKey) {
+		for (int i = 0; i < stats.size(); i++) {
+			ShopStat stat = stats.get(i);
+			Map<String, String> replacements = new HashMap<String, String>();
+			replacements.put("%scoreboardchatshop_player%", displayName);
+			replacements.put("%scoreboardchatshop_rank%", "" + (i + 1));
+			replacements.put("%scoreboardchatshop_material%", stat.getMaterial().toUpperCase());
+			replacements.put("%scoreboardchatshop_amount%", "" + stat.getAmount());
+			replacements.put("%scoreboardchatshop_money%", "" + stat.getMoney());
+			sender.sendMessage(formatString(target, messagesFile.getString(messageKey), replacements));
+		}
+	}
 	
 	@SuppressWarnings("deprecation")
 	private void explainCommands (CommandSender sender, String base) {
@@ -312,6 +425,8 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 			sender.sendMessage(formatString(Bukkit.getOfflinePlayer(sender.getName()), messagesFile.getString("Help_Buy"), null, null, null, null, null, null));
 		if (base == null || base.equalsIgnoreCase("sell"))
 			sender.sendMessage(formatString(Bukkit.getOfflinePlayer(sender.getName()), messagesFile.getString("Help_Sell"), null, null, null, null, null, null));
+		if (base == null || base.equalsIgnoreCase("shop"))
+			sender.sendMessage(formatString(Bukkit.getOfflinePlayer(sender.getName()), messagesFile.getString("Help_Shop"), null, null, null, null, null, null));
 	}
 	
 	@SuppressWarnings({ "unused", "deprecation" })
@@ -331,6 +446,10 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 	
 	@SuppressWarnings("deprecation")
 	private void handlePrice (CommandSender sender, String matName, int amount) {
+		if (amount <= 0) {
+			warnBadNumberFormat(sender);
+			return;
+		}
 		if (matName.equalsIgnoreCase("hand") && sender instanceof Player) {
 			Player p = (Player) sender;
 			if (p.getInventory().getItemInMainHand() != null)
@@ -369,6 +488,10 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 
 	@SuppressWarnings("deprecation")
 	private void handleSetPrice (CommandSender sender, String priceType, String matName, int price, int amount) {
+		if (price < 0 || amount <= 0) {
+			warnBadNumberFormat(sender);
+			return;
+		}
 		if (matName.equalsIgnoreCase("hand") && sender instanceof Player) {
 			Player p = (Player) sender;
 			if (p.getInventory().getItemInMainHand() != null)
@@ -438,6 +561,10 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 				return;
 			}
 		}
+		if (!desiredAmountString.equalsIgnoreCase("max") && desiredAmount <= 0) {
+			warnBadNumberFormat(p);
+			return;
+		}
 		
 		if (aliasDatabase.containsKey(matName.toLowerCase())) {
 			String parentName = aliasDatabase.get(matName.toLowerCase());
@@ -451,6 +578,10 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 					double balance = econ.getBalance(p);
 					desiredAmount = (int) Math.max(Math.floor(balance / ratio), 1);
 					desiredAmount -= desiredAmount % amount;
+					if (desiredAmount <= 0) {
+						p.sendMessage(formatString(p, messagesFile.getString("Buy_NotEnoughMoney"), price+"", amount+"", price+"", amount+"", matName, parentName));
+						return;
+					}
 				}
 				
 				//Check if desired amount is in bundle size
@@ -492,6 +623,7 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 				//Withdraw and give item
 				econ.withdrawPlayer(p, priceOwed);
 				p.getInventory().addItem(item.clone());
+				recordTransaction(p, "Buy", parentName, desiredAmount, priceOwed);
 				p.sendMessage(formatString(p, messagesFile.getString("Buy_Success"), priceOwed+"", desiredAmount+"", price+"", amount+"", matName, parentName));
 			} else {
 				if (sellPriceDatabase.containsKey(parentName) && sellAmountDatabase.containsKey(parentName)) {
@@ -518,6 +650,10 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 				warnBadNumberFormat(p);
 				return;
 			}
+		}
+		if (!desiredAmountString.equalsIgnoreCase("max") && desiredAmount <= 0) {
+			warnBadNumberFormat(p);
+			return;
 		}
 		
 		if (aliasDatabase.containsKey(matName.toLowerCase())) {
@@ -581,6 +717,7 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 						i = 36;
 				}
 				econ.depositPlayer(p, priceOwed);
+				recordTransaction(p, "Sell", parentName, desiredAmount, priceOwed);
 				p.sendMessage(formatString(p, messagesFile.getString("Sell_Success"), priceOwed+"", desiredAmount+"", price+"", amount+"", matName, parentName));
 			} else {
 				if (buyPriceDatabase.containsKey(parentName) && buyAmountDatabase.containsKey(parentName)) {
@@ -592,6 +729,175 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 		} else {
 			p.sendMessage(formatString(p, messagesFile.getString("Sell_NotBoughtOrSold"), null, desiredAmount+"", null, null, matName, null));
 		}
+	}
+
+	public String resolveMaterialName(String matName) {
+		if (matName == null)
+			return null;
+		return aliasDatabase.get(matName.toLowerCase());
+	}
+
+	public Integer getBuyBundlePrice(String matName) {
+		String parentName = resolveMaterialName(matName);
+		if (parentName == null)
+			return null;
+		return buyPriceDatabase.get(parentName);
+	}
+
+	public Integer getBuyBundleAmount(String matName) {
+		String parentName = resolveMaterialName(matName);
+		if (parentName == null)
+			return null;
+		return buyAmountDatabase.get(parentName);
+	}
+
+	public Integer getSellBundlePrice(String matName) {
+		String parentName = resolveMaterialName(matName);
+		if (parentName == null)
+			return null;
+		return sellPriceDatabase.get(parentName);
+	}
+
+	public Integer getSellBundleAmount(String matName) {
+		String parentName = resolveMaterialName(matName);
+		if (parentName == null)
+			return null;
+		return sellAmountDatabase.get(parentName);
+	}
+
+	public List<ShopStat> getTopStats(OfflinePlayer target, String transactionType, int limit) {
+		return getTopStatsFromKey(getStatsPlayerKey(target), transactionType, limit);
+	}
+
+	public int getStatTotal(OfflinePlayer target, String transactionType, String fieldName) {
+		String playerKey = getStatsPlayerKey(target);
+		String normalizedType = normalizeTransactionType(transactionType);
+		if (playerKey == null || normalizedType == null)
+			return 0;
+
+		synchronized (statsLock) {
+			ConfigurationSection sec = statsFile.getConfigurationSection("Players." + playerKey + "." + normalizedType);
+			if (sec == null)
+				return 0;
+
+			int total = 0;
+			for (String matName : sec.getKeys(false))
+				total += sec.getInt(matName + "." + fieldName);
+			return total;
+		}
+	}
+
+	public List<String> getKnownStatsPlayerNames() {
+		List<String> playerNames = new ArrayList<String>();
+		synchronized (statsLock) {
+			ConfigurationSection playersSec = statsFile.getConfigurationSection("Players");
+			if (playersSec == null)
+				return playerNames;
+
+			for (String key : playersSec.getKeys(false)) {
+				String playerName = playersSec.getString(key + ".Name");
+				if (playerName != null && !playerName.isEmpty())
+					playerNames.add(playerName);
+			}
+		}
+		return playerNames;
+	}
+
+	private List<ShopStat> getTopStatsFromKey(String playerKey, String transactionType, int limit) {
+		List<ShopStat> stats = new ArrayList<ShopStat>();
+		String normalizedType = normalizeTransactionType(transactionType);
+		if (playerKey == null || normalizedType == null)
+			return stats;
+
+		synchronized (statsLock) {
+			ConfigurationSection sec = statsFile.getConfigurationSection("Players." + playerKey + "." + normalizedType);
+			if (sec == null)
+				return stats;
+
+			for (String matName : sec.getKeys(false)) {
+				int amount = sec.getInt(matName + ".amount");
+				int money = sec.getInt(matName + ".money");
+				if (amount > 0 || money > 0)
+					stats.add(new ShopStat(matName, amount, money));
+			}
+		}
+
+		Collections.sort(stats, new Comparator<ShopStat>() {
+			@Override
+			public int compare(ShopStat statA, ShopStat statB) {
+				int moneyCompare = Integer.compare(statB.getMoney(), statA.getMoney());
+				if (moneyCompare != 0)
+					return moneyCompare;
+
+				int amountCompare = Integer.compare(statB.getAmount(), statA.getAmount());
+				if (amountCompare != 0)
+					return amountCompare;
+
+				return statA.getMaterial().compareTo(statB.getMaterial());
+			}
+		});
+
+		if (stats.size() > limit)
+			return new ArrayList<ShopStat>(stats.subList(0, limit));
+		return stats;
+	}
+
+	private void recordTransaction(Player p, String transactionType, String matName, int amount, int money) {
+		String normalizedType = normalizeTransactionType(transactionType);
+		if (normalizedType == null || amount <= 0 || money < 0)
+			return;
+
+		String uuid = p.getUniqueId().toString();
+		String material = matName.toLowerCase();
+		String basePath = "Players." + uuid;
+		String statPath = basePath + "." + normalizedType + "." + material;
+
+		synchronized (statsLock) {
+			statsFile.set(basePath + ".Name", p.getName());
+			statsFile.set(statPath + ".amount", statsFile.getInt(statPath + ".amount") + amount);
+			statsFile.set(statPath + ".money", statsFile.getInt(statPath + ".money") + money);
+			statsFile.save();
+		}
+	}
+
+	private String getStatsPlayerKey(OfflinePlayer target) {
+		if (target == null)
+			return null;
+
+		UUID uuid = target.getUniqueId();
+		synchronized (statsLock) {
+			if (uuid != null && statsFile.isConfigurationSection("Players." + uuid.toString()))
+				return uuid.toString();
+
+			return findStatsPlayerKey(target.getName());
+		}
+	}
+
+	private String findStatsPlayerKey(String playerName) {
+		if (playerName == null)
+			return null;
+
+		synchronized (statsLock) {
+			ConfigurationSection playersSec = statsFile.getConfigurationSection("Players");
+			if (playersSec == null)
+				return null;
+
+			for (String key : playersSec.getKeys(false)) {
+				if (playerName.equalsIgnoreCase(playersSec.getString(key + ".Name")))
+					return key;
+			}
+		}
+		return null;
+	}
+
+	private String normalizeTransactionType(String transactionType) {
+		if (transactionType == null)
+			return null;
+		if (transactionType.equalsIgnoreCase("buy"))
+			return "Buy";
+		if (transactionType.equalsIgnoreCase("sell"))
+			return "Sell";
+		return null;
 	}
 	
 	private int gcd(int a, int b)
@@ -606,31 +912,60 @@ public class ScoreboardChatShop extends UtilityEquippedJavaPlugin implements Lis
 	}
 	
 	private String formatString (OfflinePlayer p, String s, String price, String amount, String baseBundlePrice, String baseBundleAmount, String material, String baseMaterial) {
-		baseMaterial = baseMaterial == null ? null : baseMaterial.toUpperCase();
-		
-		String replacer = "%scoreboardchatshop_price%";
-		while (price != null && s.contains(replacer))
-			s = s.replace(replacer, price);
-		replacer = "%scoreboardchatshop_amount%";
-		while (amount != null && s.contains(replacer))
-			s = s.replace(replacer, amount);
-		replacer = "%scoreboardchatshop_basebundleamount%";
-		while (baseBundleAmount != null && s.contains(replacer))
-			s = s.replace(replacer, baseBundleAmount);
-		replacer = "%scoreboardchatshop_basebundleprice%";
-		while (baseBundlePrice != null && s.contains(replacer))
-			s = s.replace(replacer, baseBundlePrice);
-		replacer = "%scoreboardchatshop_material%";
-		while (material != null && s.contains(replacer))
-			s = s.replace(replacer, material);
-		replacer = "%scoreboardchatshop_basematerial%";
-		while (baseMaterial != null && s.contains(replacer))
-			s = s.replace(replacer, baseMaterial);
+		Map<String, String> replacements = new HashMap<String, String>();
+		if (price != null)
+			replacements.put("%scoreboardchatshop_price%", price);
+		if (amount != null)
+			replacements.put("%scoreboardchatshop_amount%", amount);
+		if (baseBundleAmount != null)
+			replacements.put("%scoreboardchatshop_basebundleamount%", baseBundleAmount);
+		if (baseBundlePrice != null)
+			replacements.put("%scoreboardchatshop_basebundleprice%", baseBundlePrice);
+		if (material != null)
+			replacements.put("%scoreboardchatshop_material%", material);
+		if (baseMaterial != null)
+			replacements.put("%scoreboardchatshop_basematerial%", baseMaterial.toUpperCase());
+		return formatString(p, s, replacements);
+	}
+
+	private String formatString (OfflinePlayer p, String s, Map<String, String> replacements) {
+		if (s == null)
+			return "";
+
+		for (String replacer : replacements.keySet()) {
+			String replacement = replacements.get(replacer);
+			while (replacement != null && s.contains(replacer))
+				s = s.replace(replacer, replacement);
+		}
 		
 		s = StringUtils.makeColors(s);
 		if (foundPlaceholderAPI)
 			s = PlaceholderAPI.setPlaceholders(p, s);
 		return s;
+	}
+
+	public static class ShopStat {
+		private String material;
+		private int amount;
+		private int money;
+
+		public ShopStat(String material, int amount, int money) {
+			this.material = material;
+			this.amount = amount;
+			this.money = money;
+		}
+
+		public String getMaterial() {
+			return material;
+		}
+
+		public int getAmount() {
+			return amount;
+		}
+
+		public int getMoney() {
+			return money;
+		}
 	}
 	
 }

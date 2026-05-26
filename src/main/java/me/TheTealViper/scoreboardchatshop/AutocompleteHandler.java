@@ -15,11 +15,13 @@ public class AutocompleteHandler implements TabCompleter{
 	ScoreboardChatShop SCS;
 	List<String> setpriceOptions = new ArrayList<String>();
 	List<String> buysellOptions = new ArrayList<String>();
+	List<String> shopOptions = new ArrayList<String>();
 
 	public AutocompleteHandler (ScoreboardChatShop SCS) {
 		this.SCS = SCS;
 		setpriceOptions.add("buy");
 		setpriceOptions.add("sell");
+		shopOptions.add("check");
 	}
 	
 	@Override
@@ -41,16 +43,21 @@ public class AutocompleteHandler implements TabCompleter{
 			} else if (label.equalsIgnoreCase("sell")) {
 				StringUtil.copyPartialMatches(args[0], getInventoryPresentSellMaterials(sender), completions);
 				return completions;
+			} else if (label.equalsIgnoreCase("shop")) {
+				StringUtil.copyPartialMatches(args[0], shopOptions, completions);
+				return completions;
 			}
 		} else if (args.length == 2) {
 			if (label.equalsIgnoreCase("setprice")) {
 				StringUtil.copyPartialMatches(args[1], SCS.materialExpansiveList, completions);
 				return completions;
 			} else if (label.equalsIgnoreCase("buy")) {
-				Player p = (Player) sender;
 				List<String> options = new ArrayList<String>();
-				if (args[0].equalsIgnoreCase("hand") && p.getInventory().getItemInMainHand() != null && !p.getInventory().getItemInMainHand().getType().equals(Material.AIR))
-					args[0] = p.getInventory().getItemInMainHand().getType().name();
+				if (sender instanceof Player && args[0].equalsIgnoreCase("hand")) {
+					Player p = (Player) sender;
+					if (p.getInventory().getItemInMainHand() != null && !p.getInventory().getItemInMainHand().getType().equals(Material.AIR))
+						args[0] = p.getInventory().getItemInMainHand().getType().name();
+				}
 				String parentName = SCS.aliasDatabase.get(args[0].toLowerCase());
 				if (parentName == null) return options;
 				if (!SCS.buyAmountDatabase.containsKey(parentName)) return options;
@@ -62,10 +69,12 @@ public class AutocompleteHandler implements TabCompleter{
 				StringUtil.copyPartialMatches(args[1], options, completions);
 				return completions;
 			} else if (label.equalsIgnoreCase("sell")) {
-				Player p = (Player) sender;
 				List<String> options = new ArrayList<String>();
-				if (args[0].equalsIgnoreCase("hand") && p.getInventory().getItemInMainHand() != null && !p.getInventory().getItemInMainHand().getType().equals(Material.AIR))
-					args[0] = p.getInventory().getItemInMainHand().getType().name();
+				if (sender instanceof Player && args[0].equalsIgnoreCase("hand")) {
+					Player p = (Player) sender;
+					if (p.getInventory().getItemInMainHand() != null && !p.getInventory().getItemInMainHand().getType().equals(Material.AIR))
+						args[0] = p.getInventory().getItemInMainHand().getType().name();
+				}
 				String parentName = SCS.aliasDatabase.get(args[0].toLowerCase());
 				if (parentName == null) return options;
 				if (!SCS.sellAmountDatabase.containsKey(parentName)) return options;
@@ -76,6 +85,9 @@ public class AutocompleteHandler implements TabCompleter{
 				options.add("max");
 				StringUtil.copyPartialMatches(args[1], options, completions);
 				return completions;
+			} else if (label.equalsIgnoreCase("shop") && args[0].equalsIgnoreCase("check")) {
+				StringUtil.copyPartialMatches(args[1], getKnownPlayerNames(), completions);
+				return completions;
 			}
 		} else if (args.length == 3) {
 			//Do nothing
@@ -84,6 +96,15 @@ public class AutocompleteHandler implements TabCompleter{
 		}
 		
 		return completions;
+	}
+
+	private List<String> getKnownPlayerNames() {
+		List<String> playerNames = new ArrayList<String>(SCS.getKnownStatsPlayerNames());
+		for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+			if (!playerNames.contains(onlinePlayer.getName()))
+				playerNames.add(onlinePlayer.getName());
+		}
+		return playerNames;
 	}
 	
 	public List<String> getInventoryPresentPriceMaterials (CommandSender sender) {

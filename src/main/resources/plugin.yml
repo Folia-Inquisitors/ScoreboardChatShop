@@ -16,3 +16,6 @@ commands:
   description: Sell the item
  price:
   description: Get the price
+ shop:
+  description: View shop stats
+  usage: /shop check <username>

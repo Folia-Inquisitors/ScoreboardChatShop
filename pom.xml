@@ -8,13 +8,13 @@
 
     <groupId>me.thetealviper</groupId>
     <artifactId>ScoreboardChatShop</artifactId>
-    <version>1.19.2.a.1-folia</version>
+    <version>26.1.2-folia</version>
     <packaging>jar</packaging>
 
     <name>ScoreboardChatShop</name>
 
     <properties>
-        <java.version>11</java.version>
+        <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
